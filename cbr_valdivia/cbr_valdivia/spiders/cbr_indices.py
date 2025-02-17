@@ -1,6 +1,6 @@
 import scrapy
-from scrapy.http import FormRequest
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -13,7 +13,10 @@ class CbrIndicesSpider(scrapy.Spider):
 
     def __init__(self, *args, **kwargs):
         super(CbrIndicesSpider, self).__init__(*args, **kwargs)
-        self.driver = webdriver.Chrome()  # Asegúrate de tener el controlador de Chrome instalado
+        options = webdriver.ChromeOptions()
+        options.binary_location = '/usr/bin/google-chrome'
+        service = Service(executable_path='/usr/local/bin/chromedriver')
+        self.driver = webdriver.Chrome(service=service, options=options)
 
     def start_requests(self):
         self.driver.get(self.start_urls[0])
