@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from scrapy.selector import Selector
+from scrapy.http import HtmlResponse
 
 class CbrIndicesSpider(scrapy.Spider):
     name = 'cbr_indices'
@@ -19,7 +20,11 @@ class CbrIndicesSpider(scrapy.Spider):
         self.driver = webdriver.Chrome(service=service, options=options)
 
     def start_requests(self):
-        self.driver.get(self.start_urls[0])
+        for url in self.start_urls:
+            yield scrapy.Request(url=url, callback=self.parse_selenium)
+
+    def parse_selenium(self, response):
+        self.driver.get(response.url)
         
         # Enviar solicitud POST con los parámetros de año
         anio_desde = self.driver.find_element(By.ID, 'anio_registro')
@@ -35,13 +40,14 @@ class CbrIndicesSpider(scrapy.Spider):
             EC.presence_of_element_located((By.ID, 'modal-miventana'))
         )
         
-        # Extraer datos de la ventana modal
-        self.parse(self.driver.page_source)
+        # Crear response de Scrapy con el contenido dinámico
+        body = self.driver.page_source
+        url = self.driver.current_url
+        response = HtmlResponse(url=url, body=body, encoding='utf-8')
         
-        self.driver.quit()
+        return self.parse(response)
 
-    def parse(self, html):
-        response = Selector(text=html)
+    def parse(self, response):
         modal = response.css('#modal-miventana')
         indices = modal.css('div.content > div.table-responsive-sm > table > tbody > tr')
         
@@ -55,3 +61,7 @@ class CbrIndicesSpider(scrapy.Spider):
                 'acto_contrato': indice.css('td:nth-child(6)::text').get(),
                 'numero_solicitud': indice.css('td:nth-child(7)::text').get()
             }
+
+    def closed(self, reason):
+        if hasattr(self, 'driver'):
+            self.driver.quit()
